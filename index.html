@@ -1,101 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-  <title>极简组队系统</title>
-  <!-- 正确加载依赖 -->
-  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@6.x/css/materialdesignicons.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.1.15/dist/vuetify.min.css" rel="stylesheet">
-  <script src="https://unpkg.com/vue@3.2.47/dist/vue.global.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.1.15/dist/vuetify.umd.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-firestore-compat.js"></script>
-  <style>
-    /* 添加基础边距 */
-    .v-card {
-      margin: 16px 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏组队系统</title>
+    
+    <!-- 使用国内CDN资源 -->
+    <!-- Material Design 图标 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/MaterialDesign-Webfont/7.2.96/css/materialdesignicons.min.css" rel="stylesheet">
+    
+    <!-- Vuetify 3 样式 -->
+    <link href="https://cdn.bootcdn.net/ajax/libs/vuetify/3.3.22/vuetify.min.css" rel="stylesheet">
+    
+    <!-- Vue 3 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vue/3.3.4/vue.global.prod.min.js"></script>
+    
+    <!-- Vuetify 3 -->
+    <script src="https://cdn.bootcdn.net/ajax/libs/vuetify/3.3.22/vuetify.umd.min.js"></script>
+    
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-firestore-compat.js"></script>
+    
+    <style>
+        .role-chip {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .role-chip:hover {
+            transform: scale(1.05);
+        }
+        .party-card {
+            margin: 16px 0;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <v-app>
-      <v-main>
-        <v-container>
-          <!-- 创建队伍表单 -->
-          <v-card class="mb-4">
-            <v-card-title>创建新队伍</v-card-title>
-            <v-card-text>
-              <v-select
-                v-model="newParty.dungeon"
-                :items="dungeons"
-                label="选择副本"
-                variant="outlined"
-              ></v-select>
-              
-              <v-combobox
-                v-model="newParty.requiredRoles"
-                :items="roles"
-                label="需求职业"
-                multiple
-                chips
-                variant="outlined"
-              ></v-combobox>
-              
-              <v-btn 
-                color="primary"
-                @click="createParty"
-                :disabled="!canCreate"
-              >
-                创建队伍
-              </v-btn>
-            </v-card-text>
-          </v-card>
+    <div id="app">
+        <v-app>
+            <v-main>
+                <v-container class="py-8">
+                    <!-- 创建队伍表单 -->
+                    <v-card class="party-card">
+                        <v-card-title class="bg-blue-darken-2 text-white">
+                            <v-icon icon="mdi-sword-cross"></v-icon>
+                            创建新队伍
+                        </v-card-title>
+                        <v-card-text class="pt-4">
+                            <v-row>
+                                <v-col cols="12" md="6">
+                                    <v-select
+                                        v-model="newParty.dungeon"
+                                        :items="dungeons"
+                                        label="选择副本"
+                                        variant="outlined"
+                                        clearable
+                                        prepend-icon="mdi-map"
+                                    ></v-select>
+                                </v-col>
+                                <v-col cols="12" md="6">
+                                    <v-combobox
+                                        v-model="newParty.requiredRoles"
+                                        :items="roles"
+                                        label="需求职业"
+                                        multiple
+                                        chips
+                                        variant="outlined"
+                                        prepend-icon="mdi-account-group"
+                                    ></v-combobox>
+                                </v-col>
+                            </v-row>
+                            <v-btn 
+                                color="primary"
+                                @click="createParty"
+                                :disabled="!canCreate"
+                                block
+                                size="large"
+                            >
+                                <v-icon icon="mdi-plus-circle"></v-icon>
+                                创建队伍
+                            </v-btn>
+                        </v-card-text>
+                    </v-card>
 
-          <!-- 队伍列表 -->
-          <v-card 
-            v-for="party in sortedParties"
-            :key="party.id"
-            class="mb-2"
-          >
-            <v-card-title class="d-flex align-center">
-              <v-icon icon="mdi-sword-cross"></v-icon>
-              <span class="ml-2">{{ party.dungeon }}</span>
-              <v-chip 
-                :color="isPartyOpen(party) ? 'green' : 'red'"
-                class="ml-2"
-              >
-                {{ isPartyOpen(party) ? '招募中' : '已满员' }}
-              </v-chip>
-            </v-card-title>
-            
-            <v-card-text>
-              <div class="mb-2">需求职业：</div>
-              <div class="d-flex flex-wrap">
-                <v-chip
-                  v-for="role in party.requiredRoles"
-                  :key="role"
-                  class="ma-1"
-                  :color="getRoleColor(role)"
-                  @click="joinParty(party.id, role)"
-                >
-                  {{ role }} ({{ countRoles(party.members, role) }}/1)
-                </v-chip>
-              </div>
-              
-              <v-divider class="my-3"></v-divider>
-              
-              <div class="text-caption">
-                <v-icon icon="mdi-account-group"></v-icon>
-                当前成员：{{ formatMembers(party.members) || '暂无' }}
-              </div>
-            </v-card-text>
-          </v-card>
-        </v-container>
-      </v-main>
-    </v-app>
-  </div>
+                    <!-- 队伍列表 -->
+                    <template v-if="loading">
+                        <v-progress-linear indeterminate color="blue"></v-progress-linear>
+                    </template>
+                    <template v-else>
+                        <v-card 
+                            v-for="party in sortedParties"
+                            :key="party.id"
+                            class="party-card"
+                        >
+                            <v-card-title class="d-flex align-center bg-green-darken-1 text-white">
+                                <v-icon icon="mdi-party-popper"></v-icon>
+                                <span class="ml-2">{{ party.dungeon }}</span>
+                                <v-spacer></v-spacer>
+                                <v-chip 
+                                    :color="isPartyOpen(party) ? 'green' : 'red'"
+                                    class="ml-2"
+                                >
+                                    {{ isPartyOpen(party) ? '招募中' : '已满员' }}
+                                </v-chip>
+                            </v-card-title>
+                            
+                            <v-card-text>
+                                <div class="text-h6 mb-2">需求职业：</div>
+                                <div class="d-flex flex-wrap">
+                                    <v-chip
+                                        v-for="role in party.requiredRoles"
+                                        :key="role"
+                                        class="ma-1 role-chip"
+                                        :color="getRoleColor(role)"
+                                        @click="joinParty(party.id, role)"
+                                        :disabled="!isRoleAvailable(party, role)"
+                                    >
+                                        <v-icon start :icon="getRoleIcon(role)"></v-icon>
+                                        {{ role }} ({{ countRoles(party.members, role) }}/1)
+                                    </v-chip>
+                                </div>
+                                
+                                <v-divider class="my-4"></v-divider>
+                                
+                                <div class="text-body-1">
+                                    <v-icon icon="mdi-account-multiple"></v-icon>
+                                    当前成员：{{ formatMembers(party.members) || '等待加入...' }}
+                                </div>
+                            </v-card-text>
+                        </v-card>
+                    </template>
+                </v-container>
+            </v-main>
+        </v-app>
+    </div>
 
 <script>
+// ================= Firebase 配置 =================
+// 需要替换为你自己的配置！！！
 const firebaseConfig = {
   apiKey: "AIzaSyCzXJWJZqh-aHQMJcAMmt04ZSsuK_cGjtQ",
   authDomain: "zxsj-e5c74.firebaseapp.com",
@@ -110,93 +153,144 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore(app);
 
+// ================= Vue 应用 =================
 const { createApp } = Vue;
 
 createApp({
   data() {
     return {
-      dungeons: ['黑龙巢穴', '熔火之心', '纳克萨玛斯'],
+      dungeons: ['黑龙巢穴', '熔火之心', '纳克萨玛斯', '太阳之井', '冰冠堡垒'],
       roles: ['坦克', '治疗', '近战DPS', '远程DPS'],
       newParty: { dungeon: null, requiredRoles: [] },
-      parties: []
+      parties: [],
+      loading: true
     }
   },
   computed: {
     sortedParties() {
       return [...this.parties].sort((a, b) => 
-        b.timestamp?.seconds - a.timestamp?.seconds
-      );
+        (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)
     },
     canCreate() {
-      return this.newParty.dungeon && this.newParty.requiredRoles.length > 0;
+      return this.newParty.dungeon && this.newParty.requiredRoles.length > 0
     }
   },
   methods: {
     // 格式化成员显示
     formatMembers(members) {
-      return members.map(m => m.split(':')[1]).join(', ');
+      return members.map(m => {
+        const [role, name] = m.split(':')
+        return `${name}（${role}）`
+      }).join(', ')
     },
     
     // 获取职业颜色
     getRoleColor(role) {
       const colors = {
-        '坦克': 'blue',
-        '治疗': 'green',
-        '近战DPS': 'orange',
-        '远程DPS': 'purple'
-      };
-      return colors[role] || 'grey';
+        '坦克': 'blue-darken-2',
+        '治疗': 'green-darken-1',
+        '近战DPS': 'orange-darken-2',
+        '远程DPS': 'purple-darken-1'
+      }
+      return colors[role] || 'grey'
     },
 
-    // 其他方法保持不变...
+    // 获取职业图标
+    getRoleIcon(role) {
+      const icons = {
+        '坦克': 'mdi-shield-sword',
+        '治疗': 'mdi-medical-bag',
+        '近战DPS': 'mdi-sword',
+        '远程DPS': 'mdi-bow-arrow'
+      }
+      return icons[role] || 'mdi-help'
+    },
+
+    // 检查职位是否可加入
+    isRoleAvailable(party, role) {
+      return this.countRoles(party.members, role) < 1
+    },
+
+    // 创建队伍
     async createParty() {
-      if (!this.canCreate) return;
-      
-      await db.collection('parties').add({
-        dungeon: this.newParty.dungeon,
-        requiredRoles: this.newParty.requiredRoles,
-        members: [],
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      
-      this.newParty = { dungeon: null, requiredRoles: [] };
-    },
-
-    async joinParty(partyId, role) {
-      const gameId = prompt(`申请担任 ${role}，请输入游戏ID：`);
-      if (!gameId) return;
-
-      const partyRef = db.collection('parties').doc(partyId);
-      const party = (await partyRef.get()).data();
-      
-      if (this.countRoles(party.members, role) < 1) {
-        await partyRef.update({
-          members: [...party.members, `${role}:${gameId}`]
-        });
+      try {
+        await db.collection('parties').add({
+          dungeon: this.newParty.dungeon,
+          requiredRoles: this.newParty.requiredRoles,
+          members: [],
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        this.newParty = { dungeon: null, requiredRoles: [] }
+      } catch (error) {
+        alert('创建失败：' + error.message)
       }
     },
 
-    countRoles(members, role) {
-      return members.filter(m => m.startsWith(role)).length;
+    // 加入队伍
+    async joinParty(partyId, role) {
+      const gameId = prompt(`申请 ${role} 职位，请输入游戏角色名：`)
+      if (!gameId) return
+
+      try {
+        const partyRef = db.collection('parties').doc(partyId)
+        const party = (await partyRef.get()).data()
+        
+        if (this.countRoles(party.members, role) < 1) {
+          await partyRef.update({
+            members: [...party.members, `${role}:${gameId}`]
+          })
+        } else {
+          alert('该职位已满！')
+        }
+      } catch (error) {
+        alert('加入失败：' + error.message)
+      }
     },
 
+    // 统计职位数量
+    countRoles(members, role) {
+      return members.filter(m => m.startsWith(role)).length
+    },
+
+    // 检查队伍状态
     isPartyOpen(party) {
       return party.requiredRoles.some(role => 
         this.countRoles(party.members, role) < 1
-      );
+      )
     }
   },
   mounted() {
-    db.collection('parties').onSnapshot(snapshot => {
+    // 实时监听队伍数据
+    this.unsubscribe = db.collection('parties').onSnapshot(snapshot => {
       this.parties = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
-    });
+      }))
+      this.loading = false
+    })
+  },
+  beforeUnmount() {
+    this.unsubscribe?.()
   }
 })
-.use(Vuetify.createVuetify())
-.mount('#app');
+.use(Vuetify.createVuetify({
+  theme: {
+    themes: {
+      light: {
+        colors: {
+          primary: '#1976D2',
+          secondary: '#424242',
+          accent: '#82B1FF',
+          error: '#FF5252',
+          info: '#2196F3',
+          success: '#4CAF50',
+          warning: '#FFC107'
+        }
+      }
+    }
+  }
+}))
+.mount('#app')
 </script>
 </body>
 </html>
