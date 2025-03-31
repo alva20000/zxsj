@@ -168,9 +168,12 @@ createApp({
   },
   computed: {
     sortedParties() {
-      return [...this.parties].sort(a, b) => 
-        (b.timestamp ? b.timestamp.seconds : 0) - (a.timestamp ? a.timestamp.seconds : 0)
-    },
+  return [...this.parties].sort((a, b) => {
+    const aTime = a.timestamp ? a.timestamp.seconds : 0
+    const bTime = b.timestamp ? b.timestamp.seconds : 0
+    return bTime - aTime
+  })
+},
     canCreate() {
       return this.newParty.dungeon && this.newParty.requiredRoles.length > 0
     }
