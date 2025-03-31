@@ -168,7 +168,7 @@ createApp({
   },
   computed: {
     sortedParties() {
-      return [...this.parties].sort((a, b) => 
+      return [...this.parties].sort(a, b) => 
         (b.timestamp ? b.timestamp.seconds : 0) - (a.timestamp ? a.timestamp.seconds : 0)
     },
     canCreate() {
